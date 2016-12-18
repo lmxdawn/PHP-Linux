@@ -87,7 +87,7 @@
             * cp php.ini-production /usr/local/php/etc/php.ini​
         
         当我们使用nginx还要把php-fpm.conf复制到/usr/local/php/etc/里头
-            * cp /root/php-5.6.9/sapi/fpm/php-fpm.conf /usr/local/php/etc/
+            * cp /root/php-5.6.9/sapi/fpm/php-fpm.conf /usr/local/php/etc/php-fpm.conf
         
         将php-fpm作为server服务 (/root/php-5.6.9/是php的源码编译后的文件夹)
             * cp /root/php-5.6.9/sapi/fpm/init.d.php-fpm /etc/init.d/php-fpm
@@ -105,6 +105,8 @@
             * service php-fpm restart
             
             * service php-fpm reload
+            
+            后面有报错直接 killall php-fpm (killall 杀死进程命令)
         
         为了方便把php设置成为全局变量
             方法:
@@ -132,8 +134,107 @@
                     
                 就OK了
                 
+                对了还有一个
+                设置时区:
+                    修改php.ini 文件 中的 ;date.timezone = 为 date.timezone = PRC  中国时区
                 
                 
+## Nginx 安装
+
+    安装依赖
+    * yum install pcre-devel -y
+    * yum install zlib-devel -y
+    
+    下载源码包
+    * cd /usr/local/src
+    * wget http://nginx.org/download/nginx-1.10.2.tar.gz
+    * tar zxvf nginx-1.10.2.tar.gz
+    * cd nginx-1.10.2
+    * ./configure --prefix=/usr/local/nginx
+    * make && make install
+    启动nginx 
+        * /usr/local/nginx/sbin/nginx
+    然后访问这个IP可以看到nginx的欢迎界面
+    
+    
+    
+## 配置nginx支持php
+    
+    * cd /usr/local/nginx/conf
+    * vim nginx.conf
+    * set nu (显示行号)
+    大约 64行 
+    
+    因为用thinkPHP5.0 所有用文档上面提供的nginx配置
+    注意: 
+        fastcgi_param SCRIPT_FILENAME 
+        这里后面的去掉 加上:
+            * $document_root$fastcgi_script_name
+    
+    保存后
+    
+    查看进程
+        * ps -A | grep nginx
+    杀死进程
+        * killall nginx
+    启动nginx
+        * /usr/local/nginx/sbin/nginx
+    
+## Nginx 配置虚拟主机
+
+    * cd /usr/local/nginx/conf
+    * vim nginx.conf
+    
+    添加对应的:
+        server {
+            listen 80;
+            server_name www.yuxin.com yuxin.com;
+            #让不带www的域名跳转到带www的域名
+            if ( $host != 'www.yuxin.com') {
+                rewrite ^(.*)$ http://www.yuxin.com/$1 permanent;
+            }
+            
+            #错误页面的一些配置
+            #error_page  404              /404.html;
+            
+            # redirect server error pages to the static page /50x.html
+            #
+            error_page   500 502 503 504  /50x.html;
+            location = /50x.html {
+                root   html;
+            }
+            
+            location / {
+                #开启ssi支持shtml
+                ssi on;
+                ssi_silent_errors on;
+                ssi_types text/shtml;
+                index index.shtml index.php index.htm index.html;
+                root /var/www/www.yuxin.com;
+                #框架路由设置
+                if ( !-e $request_filename ) {
+                    rewrite ^(.*)$ /index.php?url=$1 last;
+                    break;
+                }
+            }
+    
+            location ~\.php$ {
+                root /var/www/www.yuxin.com;
+                fastcgi_pass 127.0.0.1:9000;
+                fastcgi_index index.php;
+                fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+                include fastcgi_params;
+            }
+    
+            location ~\.(jpg|jpeg|png|js|css) {
+                root /var/www/www.yuxin.com;
+                expires 30d;
+            }
+        
+        }
+    
+    
+    
     
         
         
