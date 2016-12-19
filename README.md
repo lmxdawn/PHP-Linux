@@ -232,7 +232,142 @@
             }
         
         }
+        
+        
+# MySQL 的安装
+
+    使用下面的命令检查是否安装有MySQL Server
     
+        * rpm -qa | grep mysql
+    
+    有的话通过下面的命令来卸载掉
+    
+        * rpm -e mysql   //普通删除模式
+        * rpm -e --nodeps mysql    // 强力删除模式，如果使用上面命令删除时，提示有依赖的其它文件，则用该命令可以对其进行强力删除
+
+    安装编译源码所需的工具和库
+        * yum -y install  gcc gcc-c++ gcc-g77 autoconf automake zlib* fiex* libxml* ncurses-devel libmcrypt* libtool-ltdl-devel* make cmake
+    
+    添加用户
+        * groupadd mysql
+        * useradd -r -g mysql mysql
+    
+    编译安装
+        * cd /usr/local/src
+        * wget http://mirrors.sohu.com/mysql/MySQL-5.6/mysql-5.6.34.tar.gz
+        * tar -zxvf mysql-5.6.34.tar.gz
+        * cd mysql-5.6.34
+    编译参数:
+        * cmake  -DCMAKE_INSTALL_PREFIX=/usr/local/mysql -DMYSQL_DATADIR=/usr/local/mysql/data -DSYSCONFDIR=/etc -DWITH_MYISAM_STORAGE_ENGINE=1 -DWITH_INNOBASE_STORAGE_ENGINE=1 -DWITH_MEMORY_STORAGE_ENGINE=1 -DWITH_READLINE=1 -DMYSQL_UNIX_ADDR=/tmp/mysqld.sock -DMYSQL_TCP_PORT=3306 -DENABLED_LOCAL_INFILE=1 -DWITH_PARTITION_STORAGE_ENGINE=1 -DEXTRA_CHARSETS=all -DDEFAULT_CHARSET=utf8  -DDEFAULT_COLLATION=utf8_general_ci
+          
+                  配置的注释:
+                  
+                  -DCMAKE_INSTALL_PREFIX=/usr/local/mysql          \    #安装路径
+                  
+                  -DMYSQL_DATADIR=/usr/local/mysql/data            \    #数据文件存放位置
+                  
+                  -DSYSCONFDIR=/etc                                \    #my.cnf路径
+                  
+                  -DWITH_MYISAM_STORAGE_ENGINE=1                   \    #支持MyIASM引擎
+                  
+                  -DWITH_INNOBASE_STORAGE_ENGINE=1                 \    #支持InnoDB引擎
+                  
+                  -DWITH_MEMORY_STORAGE_ENGINE=1                   \    #支持Memory引擎
+                  
+                  -DWITH_READLINE=1                                \    #快捷键功能(我没用过)
+                  
+                  -DMYSQL_UNIX_ADDR=/tmp/mysqld.sock               \    #连接数据库socket路径
+                  
+                  -DMYSQL_TCP_PORT=3306                            \    #端口
+                  
+                  -DENABLED_LOCAL_INFILE=1                         \    #允许从本地导入数据
+                  
+                  -DWITH_PARTITION_STORAGE_ENGINE=1                \    #安装支持数据库分区
+                  
+                  -DEXTRA_CHARSETS=all                             \    #安装所有的字符集
+                  
+                  -DDEFAULT_CHARSET=utf8                           \    #默认字符
+                  
+                  -DDEFAULT_COLLATION=utf8_general_ci
+                  
+        编译的参数可以参考http://dev.mysql.com/doc/refman/5.6/en/source-configuration-options.html
+        
+        * make && make install
+        
+    改变目录所有者
+        * chown -R mysql:mysql /usr/local/mysql
+    
+    
+    注：在启动MySQL服务时，会按照一定次序搜索my.cnf，先在/etc目录下找，找不到则会搜索"$basedir/my.cnf"，在本例中就是 /usr/local/mysql/my.cnf，这是新版MySQL的配置文件的默认位置！
+    
+    注意：在CentOS 6.4版操作系统的最小安装完成后，在/etc目录下会存在一个my.cnf，需要将此文件更名为其他的名字，如：/etc/my.cnf.bak，否则，该文件会干扰源码安装的MySQL的正确配置，造成无法启动。
+    
+    在使用"yum update"更新系统后，需要检查下/etc目录下是否会多出一个my.cnf，如果多出，将它重命名成别的。否则，MySQL将使用这个配置文件启动，可能造成无法正常启动等问题。
+    
+    进入安装路径
+        * cd /usr/local/mysql
+     
+    注册为服务
+        * cd /usr/local/mysql/support-files
+        #注册服务
+        * cp mysql.server /etc/rc.d/init.d/mysql
+        #使用默认配置文件
+        * cp my-default.cnf /etc/my.cnf
+        #让chkconfig管理mysql服务
+        * chkconfig --add mysql
+        #开机启动
+        * chkconfig mysql on
+        
+     
+    初始化数据库
+        * cd /usr/local/mysql/scripts
+        * ./mysql_install_db --user=mysql --basedir=/usr/local/mysql --datadir=/usr/local/mysql/data
+    
+    启动MySQL服务
+        * service mysql start
+    
+    配置用户
+        MySQL启动成功后，root默认没有密码，我们需要设置root密码。
+        
+        设置之前，我们需要先设置PATH，要不不能直接调用mysql
+        
+        修改/etc/profile文件，在文件末尾添加
+        
+        PATH=/usr/local/mysql/bin:$PATH
+        export PATH
+        
+        关闭文件，运行下面的命令，让配置立即生效
+        
+        * source /etc/profile
+        
+        现在，我们可以在终端内直接输入mysql进入，mysql的环境了
+        
+        执行下面的命令修改root密码
+        mysql -uroot  
+        mysql> SET PASSWORD = PASSWORD('123456');
+        
+        配置远程访问权限
+        GRANT ALL PRIVILEGES ON *.* TO 'root'@'%' IDENTIFIED BY '123456' WITH GRANT OPTION;
+        
+        
+        改变编码，防止乱码
+        
+        SHOW VARIABLES LIKE 'character%'
+        
+        修改mysql的my.cnf文件
+        
+        [client]
+        default-character-set=utf8
+        
+        [mysqld]
+        character-set-server=utf8
+        
+        [mysql]
+        default-character-set=utf8
+
+        
+    
+        
     
     
     
