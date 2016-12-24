@@ -364,13 +364,196 @@
         
         [mysql]
         default-character-set=utf8
+        
+        
+        
+## 下面来介绍 Docker 配置 php-fpm + nginx
 
+    ## 简介 : 这个自行百度
+    
+
+## Docker 的安装 (这里 介绍CentOS 7 )
+
+参照 菜鸟教程 http://www.runoob.com/docker/centos-docker-install.html
+    
+    * uname -r 3.10.0-327.el7.x86_64  查看版本
+    * yum -y install docker  这里 直接yum 安装,
+    * service docker start 启动
+    
+##这一步很关键 (配置 Docker 加速器) 不配置基本下载不了,墙的厉害 
+进入 https://dashboard.daocloud.io/
+先注册一个账号,没收费, 然后登陆后 进入个人中心,里面有 加速器,点击进入就好,然后就自己看了
+
+这里附上我的 curl -sSL https://get.daocloud.io/daotools/set_mirror.sh | sh -s http://2327ed6d.m.daocloud.io
+
+每个人的都不一样,
+    
+    
+## php-fpm 安装
+
+参照菜鸟教程 http://www.runoob.com/docker/docker-install-php.html
+
+    先切换盘
+        * cd 切换到 root
+        
+        * mkdir -p ~/php-fpm/logs ~/php-fpm/conf  创建php-fpm文件夹,这随自己意
+        * mkdir -p ~/nginx/www ~/nginx/logs ~/nginx/conf 创建 nginx 文件夹
+    
+    查找Docker Hub上的php镜像
+        
+        * docker search php 
+        
+    这里我用,标签为5.6-fpm 5.6版本的
+        
+        * docker pull php:5.6-fpm
+        
+    创建完成后，我们可以在本地的镜像列表里查找到刚刚创建的镜像
+        
+        * docker images 
+        
+    运行容器
+        
+        * docker run -p 9000:9000 --name  myphp-fpm -v ~/nginx/www:/www -v ~/php-fpm/conf:/usr/local/etc/php -v ~/php-fpm/logs:/phplogs   -d php:5.6-fpm
+        
+    命令说明:
+        -p 9000:9000 :将容器的9000端口映射到主机的9000端口
+    
+        --name myphp-fpm :将容器命名为myphp-fpm
+    
+        -v ~/nginx/www:/www :将主机中~/nginx/www挂载到容器的/www (这里注意 等会配置nginx 的 fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name; 要用这个 /www 替换 $document_root)
+    
+        -v ~/php-fpm/conf:/usr/local/etc/php ：将主机中~/php-fpm/conf目录挂载到容器的/usr/local/etc/php
+    
+        -v ~/php-fpm/logs:/phplogs ：将主机中~/php-fpm/logs目录挂载到容器的/phplogs
+        
+    查看 容器是否启动
+    
+        
+        * docker ps  如果这里没有 证明启动有误,使用 docker ps -a 查看所有 看运行状态 没有 up 多少时间  就证明失败
+        
         
     
+    失败就要先清除
         
-    
-    
-    
+        * docker rm -f $(docker ps -a -q) 删除所有容器 ($(docker ps -a -q) 这里可以用 id 或者 容器名称)
         
+    成功 可以查看进入容器查看 进入后就跟Linux 操作一样了
+        
+        * docker exec -it myphp-fpm bash  进入容器 myphp-fpm 这个是容器名
+        
+    查看所有容器的IP (这个也很重要 因为等会 配置 nginx 的时候会用到 fastcgi_pass 172.17.0.3:9000;) 172.17.0.3 是我这里的IP 9000 是刚刚启动php-fpm时候的端口号
+        
+        * docker inspect --format='{{.NetworkSettings.IPAddress}}' 容器id ($(docker ps -a -q) 代表所有)
+        
+## 接下来安装 nginx 
+
+参照 菜鸟教程 http://www.runoob.com/docker/docker-install-nginx.html
+
+     
+        
+    查找Docker Hub上的nginx镜像
+       
+        * docker search nginx
+        
+    这里我拉取官方的镜像
+        
+        * docker pull nginx
+        
+    创建完成后，我们可以在本地的镜像列表里查找到刚刚创建的镜像
+            
+        * docker images 
+        
+    使用nginx镜像 运行容器 (运行前 先配置好配置变量)
+        
+        进入 配置文件
+            * cd ~/nginx/conf
+            * mkdir conf.d  创建配置文件夹 (这里 nginx 一般的配置文件是 /etc/nginx/nginx.conf  但是我们不用 直接配置虚拟机 所有在 conf 下面创建 conf.d)
+            * cd conf.d 进入配置文件
+            * vi default.conf (这里对应 nginx 容器里面的 /etc/nginx/conf.d 里面的 default.conf 文件)
+            default.conf 内容如下:
+                server {
+                    listen       80;
+                    server_name  www.yuxin.com; #这里是我自己的域名
+                
+                    location / {
+                        root   /usr/share/nginx/html; #这个是nginx 默认的静态文件路径 等会运行的时候会挂载到 这个文件夹 如果你挂载到其它文件夹自行调整
+                        index  index.html index.htm;
+                        #框架路由设置 这里我是 tp 框架 谁说tp 不好, 之前一直用 YII2 框架 ,谁好谁坏 就不说了,
+                        if ( !-e $request_filename ) {
+                            rewrite ^(.*)$ /index.php?url=$1 last;
+                            break;
+                        }
+                    }
+                
+                    error_page   500 502 503 504  /50x.html;
+                    location = /50x.html {
+                        root   /usr/share/nginx/html;
+                    }
+                
+                    location ~ \.php$ {
+                        fastcgi_pass   172.17.0.3:9000; #这里的 172.17.0.3 就是 刚刚 myphp-fpm 容器的IP
+                        fastcgi_index  index.php;
+                        fastcgi_param  SCRIPT_FILENAME  /www$fastcgi_script_name; #这里的 /www 就是刚刚运行 myphp-fpm 的时候 挂载的 文件
+                        include        fastcgi_params;
+                    }
+                }
+        
+    运行容器:
+        
+        * docker run -p 80:80 --name mynginx -v ~/nginx/www:/usr/share/nginx/html -v ~/nginx/conf/conf.d:/etc/nginx/conf.d -v ~/nginx/logs:/wwwlogs  -d nginx  
+        
+        命令说明：
+        
+            -p 80:80：将容器的80端口映射到主机的80端口
+        
+            --name mynginx：将容器命名为mynginx
+        
+            -v ~/nginx/www:/usr/share/nginx/html：将主机中~/nginx/www挂载到容器的/usr/share/nginx/html
+        
+            -v ~/nginx/conf/conf.d:/etc/nginx/conf.d：将主机中~/nginx/conf.d挂载到容器的/etc/nginx/conf.d
+        
+            -v ~/nginx/logs:/wwwlogs：将主机中~/nginx/logs挂载到容器的/wwwlogs
+            
+这里再次说明一下  这个挂载是这么操作的  /usr/share/nginx/html 是容器 mynginx 的默认静态文件存放路径,我在 配置文件中 配置了 root /usr/share/nginx/html  如果配置的其它目录自行更改
+    
+上面 运行 php-fpm 的时候 挂载的 /www 就是把 myphp-fpm 这个容器中的 /www 目录挂载到 当前主机的 ~/nginx/www 下,就是说两个容器的 都挂载到 ~/nginx/www 下, 
+这里配置错了运行php文件会直接 下载 或者 报错 file not found 意思就是 fastcgi_param  SCRIPT_FILENAME  /www$fastcgi_script_name; 这里有问题
+    
+    查看 状态 
+        
+        * docker ps 
+    
+    
+    一切 OK 后
+    
+    测试 结果
+    
+        * cd ~/nginx/www
+        
+        * vi index.html
+        
+        内容 : <html><body><h1>Hello World</h1></body></html>
+        
+        * vi phpinfo.php
+        
+        内容 : <?php phpinfo();
+        
+        访问 http://你的ip或者域名
+            http://你的ip或者域名/phpinfo.php
+    
+    
+你会发现 phpinfo 会有警告  date_default_timezone_set 没有设置
+
+这里因为 myphp-fpm 容器的配置文件 挂载到 当前主机的 ~/php-fpm/conf 目录了
+直接加上配置文件 即可
+    
+    * cd ~/php-fpm/conf
+    * vi php.ini
+      加入 : date.timezone = PRC # 设置时区 PRC 就是中国
+      
+    但是注意 还是要重新运行 myphp-fpm 容器
+        * docker restart myphp-fpm
+        
+# 大功告成,有什么问题欢迎讨论 
         
             
