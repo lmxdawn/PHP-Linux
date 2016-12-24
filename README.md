@@ -555,5 +555,7 @@
         * docker restart myphp-fpm
         
 # 大功告成,有什么问题欢迎讨论 
+
+    后面会附上 redis MySQL 的基本安装
         
             
