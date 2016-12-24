@@ -559,5 +559,54 @@
 # 大功告成,有什么问题欢迎讨论 
 
     后面会附上 redis MySQL 的基本安装
+    
+    
+## docker MySQL 的安装
+
+参照 菜鸟教程 : http://www.runoob.com/docker/docker-install-mysql.html
+    
+    创建文件夹
+        * mkdir -p ~/mysql/data ~/mysql/logs ~/mysql/conf
+            说明 :
+                data目录将映射为mysql容器配置的数据文件存放路径
+                
+                logs目录将映射为mysql容器的日志目录
+                
+                conf目录里的配置文件将映射为mysql容器的配置文件
+    
+    查找Docker Hub上的mysql镜像
+        * docker search mysql
+    
+    这里我拉取官方的镜像,标签5.6
+        * docker pull mysql:5.6
+    
+    这里看你需不需要自行配置 my.cnf MySQL的配置文件,
+        * cd ~/mysql/conf
+        * vi my.cnf # 内容自行填写,这里不做介绍
+        
+    使用mysql镜像 运行容器
+        
+        * docker run -p 3306:3306 --name mymysql -v ~/mysql/conf/my.cnf:/etc/mysql/my.cnf -v ~/mysql/logs:/logs -v ~/mysql/data:/mysql_data -e MYSQL_ROOT_PASSWORD=123456 -d mysql:5.6
+        
+        命令说明：
+        
+            -p 3306:3306：将容器的3306端口映射到主机的3306端口
+        
+            -v ~/mysql/conf/my.cnf:/etc/mysql/my.cnf：将主机~/mysql/conf/my.cnf挂载到容器的/etc/mysql/my.cnf (这里不额外加配置可以不用配置,我这边没有配置)
+        
+            -v ~/mysql/logs:/logs：将主机~/mysql/logs目录挂载到容器的/logs
+        
+            -v ~/mysql/data:/mysql_data：将主机~/mysql/data目录挂载到容器的/mysql_data
+        
+            -e MYSQL_ROOT_PASSWORD=123456：初始化root用户的密码
+
+    进入容器 
+        * docker exec -it mymysql bash 
+        进入后执行 mysql 的指令就可以了,
+    
+    或者 使用 mysql 的连接工具, 我这里使用的 Navicat ,
+    
+    到这里 mysql 安装运行完毕
+    
         
             
