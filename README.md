@@ -384,7 +384,9 @@
 进入 https://dashboard.daocloud.io/
 先注册一个账号,没收费, 然后登陆后 进入个人中心,里面有 加速器,点击进入就好,然后就自己看了
 
-这里附上我的 curl -sSL https://get.daocloud.io/daotools/set_mirror.sh | sh -s http://2327ed6d.m.daocloud.io
+这里附上我的 
+    
+    * curl -sSL https://get.daocloud.io/daotools/set_mirror.sh | sh -s http://2327ed6d.m.daocloud.io
 
 每个人的都不一样,
     
