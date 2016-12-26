@@ -478,24 +478,48 @@
                     server_name  www.yuxin.com; #这里是我自己的域名
                 
                     location / {
-                        root   /usr/share/nginx/html; #这个是nginx 默认的静态文件路径 等会运行的时候会挂载到 这个文件夹 如果你挂载到其它文件夹自行调整
+                        root   /usr/share/nginx/html/www.yuxin.com; #这个是nginx 默认的静态文件路径 等会运行的时候会挂载到 这个文件夹 如果你挂载到其它文件夹自行调整
                         index  index.html index.htm;
-                        #框架路由设置 这里我是 tp 框架 谁说tp 不好, 之前一直用 YII2 框架 ,谁好谁坏 就不说了,
-                        if ( !-e $request_filename ) {
-                            rewrite ^(.*)$ /index.php?url=$1 last;
+                        #框架路由设置 这里我是 tp 框架 
+                        if (!-e $request_filename) {
+                            rewrite  ^(.*)$  /index.php?s=/$1  last;
                             break;
                         }
                     }
                 
                     error_page   500 502 503 504  /50x.html;
                     location = /50x.html {
-                        root   /usr/share/nginx/html;
+                        root   /usr/share/nginx/html/www.yuxin.com;
                     }
                 
-                    location ~ \.php$ {
+                    location ~ \.php {#去掉$
                         fastcgi_pass   172.17.0.3:9000; #这里的 172.17.0.3 就是 刚刚 myphp-fpm 容器的IP
                         fastcgi_index  index.php;
-                        fastcgi_param  SCRIPT_FILENAME  /www$fastcgi_script_name; #这里的 /www 就是刚刚运行 myphp-fpm 的时候 挂载的 文件
+                        
+                        # 加上这个 
+                        fastcgi_split_path_info ^(.+\.php)(.*)$;     #增加这一句
+                        fastcgi_param PATH_INFO $fastcgi_path_info;    #增加这一句
+                        
+                        # 或者 这个,二选一 建议 上面这个
+                        
+                        #定义变量 $path_info ，用于存放pathinfo信息
+                        set $path_info "";
+                        #定义变量 $real_script_name，用于存放真实地址
+                        set $real_script_name $fastcgi_script_name;
+                        #如果地址与引号内的正则表达式匹配
+                        if ($fastcgi_script_name ~ "^(.+?\.php)(/.+)$") {
+                            #将文件地址赋值给变量 $real_script_name
+                            set $real_script_name $1;
+                            #将文件地址后的参数赋值给变量 $path_info
+                            set $path_info $2;
+                        }
+                        #配置fastcgi的一些参数
+                        fastcgi_param SCRIPT_FILENAME $document_root$real_script_name;
+                        fastcgi_param SCRIPT_NAME $real_script_name;
+                        fastcgi_param PATH_INFO $path_info;
+                        
+                        
+                        fastcgi_param  SCRIPT_FILENAME  /www/www.yuxin.com$fastcgi_script_name; #这里的 /www 就是刚刚运行 myphp-fpm 的时候 挂载的 文件
                         include        fastcgi_params;
                     }
                 }
